@@ -66,6 +66,31 @@ export const incomeStreams = sqliteTable('income_streams', {
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 });
 
+// Crypto wallets
+export const cryptoWallets = sqliteTable('crypto_wallets', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('user_id').notNull(),
+  address: text('address').notNull().unique(),
+  chain: text('chain').notNull(), // 'ethereum', 'solana', 'cardano', 'binance'
+  label: text('label'), // Optional user label
+  lastScanned: integer('last_scanned', { mode: 'timestamp' }),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+});
+
+// Crypto staking rewards
+export const cryptoRewards = sqliteTable('crypto_rewards', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  walletId: integer('wallet_id').notNull(),
+  userId: text('user_id').notNull(),
+  token: text('token').notNull(), // 'ETH', 'SOL', 'ADA', 'BNB'
+  amount: real('amount').notNull(), // Amount in crypto
+  amountGBP: real('amount_gbp'), // Value in GBP at time of reward
+  source: text('source').notNull(), // 'lido', 'rocketpool', 'marinade', 'jito', 'solflare', 'cardano', 'pancakeswap'
+  rewardDate: integer('reward_date', { mode: 'timestamp' }).notNull(),
+  txHash: text('tx_hash'), // Transaction hash if available
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+});
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Connection = typeof connections.$inferSelect;
@@ -76,3 +101,7 @@ export type Transaction = typeof transactions.$inferSelect;
 export type NewTransaction = typeof transactions.$inferInsert;
 export type IncomeStream = typeof incomeStreams.$inferSelect;
 export type NewIncomeStream = typeof incomeStreams.$inferInsert;
+export type CryptoWallet = typeof cryptoWallets.$inferSelect;
+export type NewCryptoWallet = typeof cryptoWallets.$inferInsert;
+export type CryptoReward = typeof cryptoRewards.$inferSelect;
+export type NewCryptoReward = typeof cryptoRewards.$inferInsert;

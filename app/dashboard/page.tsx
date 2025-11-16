@@ -1,9 +1,10 @@
 import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
-import { connections, bankAccounts, transactions } from '@/db/schema';
+import { connections, bankAccounts, transactions, cryptoRewards, cryptoWallets } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { IncomeSummary } from '@/components/income-summary';
+import { CryptoCard } from '@/components/crypto-card';
 import { Wallet, Plus } from 'lucide-react';
 import Link from 'next/link';
 
@@ -47,6 +48,48 @@ export default async function DashboardPage() {
       lastSyncDate = accounts[0].lastSynced;
     }
   }
+
+  // Fetch crypto rewards
+  const userCryptoRewards = await db
+    .select()
+    .from(cryptoRewards)
+    .where(eq(cryptoRewards.userId, userId));
+
+  // Get last scanned date from wallets
+  const userWallets = await db
+    .select()
+    .from(cryptoWallets)
+    .where(eq(cryptoWallets.userId, userId))
+    .orderBy(desc(cryptoWallets.lastScanned))
+    .limit(1);
+
+  const lastCryptoScan = userWallets.length > 0 ? userWallets[0].lastScanned : null;
+
+  // Calculate crypto totals by token
+  const cryptoTotals = userCryptoRewards.reduce((acc: any, reward) => {
+    if (!acc[reward.token]) {
+      acc[reward.token] = {
+        token: reward.token,
+        amount: 0,
+        amountGBP: 0,
+        sources: new Set(),
+      };
+    }
+    acc[reward.token].amount += reward.amount;
+    acc[reward.token].amountGBP += reward.amountGBP || 0;
+    acc[reward.token].sources.add(reward.source);
+    return acc;
+  }, {});
+
+  const cryptoSummary = Object.values(cryptoTotals).map((t: any) => ({
+    ...t,
+    sources: Array.from(t.sources),
+  }));
+
+  const totalCryptoGBP = cryptoSummary.reduce((sum: number, t: any) => sum + t.amountGBP, 0);
+
+  // Detect if user is UAE resident (in production, would check user profile)
+  const isUAE = true; // Hardcoded for @therealBenKemp
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -96,6 +139,16 @@ export default async function DashboardPage() {
             ✓ Bank account connected successfully! Your transactions are now syncing.
           </div>
         )}
+
+        {/* Crypto Staking Card */}
+        <div className="mb-8">
+          <CryptoCard
+            rewards={cryptoSummary}
+            totalGBP={totalCryptoGBP}
+            isUAE={isUAE}
+            lastScanned={lastCryptoScan}
+          />
+        </div>
 
         {/* Income Summary */}
         {hasConnection && (

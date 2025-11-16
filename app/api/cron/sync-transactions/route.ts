@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { connections, bankAccounts, transactions } from '@/db/schema';
+import { connections, bankAccounts, transactions, cryptoWallets, cryptoRewards } from '@/db/schema';
 import { getTrueLayerClient, categorizeTransaction } from '@/lib/truelayer';
+import { scanWalletRewards, getCryptoPriceInGBP } from '@/lib/crypto';
 import { eq, lt } from 'drizzle-orm';
 
 export async function GET(request: Request) {
@@ -17,7 +18,9 @@ export async function GET(request: Request) {
     const truelayer = getTrueLayerClient();
     let synced = 0;
     let errors = 0;
+    let cryptoScanned = 0;
 
+    // ========== TRUELAYER BANK SYNC ==========
     // Fetch all active connections
     const activeConnections = await db.select().from(connections);
 
@@ -106,17 +109,62 @@ export async function GET(request: Request) {
       }
     }
 
-    console.log(`Transaction sync completed: ${synced} synced, ${errors} errors`);
+    // ========== CRYPTO WALLET SCAN ==========
+    console.log('Starting crypto wallet scan...');
+
+    const allWallets = await db.select().from(cryptoWallets);
+
+    for (const wallet of allWallets) {
+      try {
+        // Scan for staking rewards
+        const rewards = await scanWalletRewards(wallet.address, wallet.chain);
+
+        for (const reward of rewards) {
+          // Get current price in GBP
+          const priceGBP = await getCryptoPriceInGBP(reward.token);
+          const amountGBP = reward.amount * priceGBP;
+
+          // Save reward to database
+          await db
+            .insert(cryptoRewards)
+            .values({
+              walletId: wallet.id,
+              userId: wallet.userId,
+              token: reward.token,
+              amount: reward.amount,
+              amountGBP,
+              source: reward.source,
+              rewardDate: new Date(),
+            })
+            .onConflictDoNothing();
+
+          cryptoScanned++;
+        }
+
+        // Update last scanned timestamp
+        await db
+          .update(cryptoWallets)
+          .set({ lastScanned: new Date() })
+          .where(eq(cryptoWallets.id, wallet.id));
+
+      } catch (err) {
+        console.error(`Error scanning wallet ${wallet.address}:`, err);
+        errors++;
+      }
+    }
+
+    console.log(`Sync completed: ${synced} bank transactions, ${cryptoScanned} crypto rewards, ${errors} errors`);
 
     return NextResponse.json({
       success: true,
-      message: 'Transaction sync completed',
-      synced,
+      message: 'Sync completed',
+      bankTransactions: synced,
+      cryptoRewards: cryptoScanned,
       errors,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error('Error in transaction sync:', error);
+    console.error('Error in sync cron:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
