@@ -51,15 +51,26 @@ export function Sidebar() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 z-40 h-screen w-60 border-r border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 transition-transform lg:translate-x-0 ${
+        className={`fixed top-0 left-0 z-40 h-screen w-60 border-r bg-white backdrop-blur-xl transition-transform lg:translate-x-0 shadow-xl ${
           isMobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
+        style={{
+          borderColor: 'var(--border)',
+          backgroundColor: 'var(--card)',
+        }}
       >
         <div className="flex h-full flex-col">
           {/* Logo */}
-          <div className="flex h-16 items-center gap-2 border-b border-zinc-200 px-6 dark:border-zinc-800">
-            <Wallet className="h-6 w-6 text-purple-600" />
-            <span className="text-lg font-bold">Side-Hustle Vault</span>
+          <div className="flex h-16 items-center gap-3 border-b px-6" style={{ borderColor: 'var(--border)' }}>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl gradient-purple">
+              <Wallet className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <span className="text-lg font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                Side-Hustle
+              </span>
+              <p className="text-xs text-zinc-500">Vault</p>
+            </div>
           </div>
 
           {/* Navigation */}
@@ -73,16 +84,18 @@ export function Sidebar() {
                   key={item.href}
                   href={item.href}
                   onClick={() => setIsMobileOpen(false)}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                  className={`group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all ${
                     isActive
-                      ? 'bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300'
-                      : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
+                      ? 'bg-gradient-to-r from-purple-50 to-pink-50 text-purple-700 shadow-sm dark:from-purple-950 dark:to-pink-950 dark:text-purple-300'
+                      : 'text-zinc-700 hover:bg-zinc-100 hover:shadow-sm dark:text-zinc-300 dark:hover:bg-zinc-800'
                   }`}
                 >
-                  <Icon className="h-5 w-5" />
+                  <div className={`rounded-lg p-1.5 ${isActive ? 'bg-white shadow-sm' : 'group-hover:bg-white group-hover:shadow-sm'}`}>
+                    <Icon className={`h-4 w-4 ${isActive ? 'text-purple-600' : 'text-zinc-500 group-hover:text-purple-600'}`} />
+                  </div>
                   <span className="flex-1">{item.name}</span>
                   {item.pro && (
-                    <span className="rounded bg-gradient-to-r from-purple-600 to-pink-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    <span className="rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm">
                       PRO
                     </span>
                   )}
@@ -92,17 +105,19 @@ export function Sidebar() {
           </nav>
 
           {/* Footer */}
-          <div className="border-t border-zinc-200 p-4 dark:border-zinc-800">
-            <div className="rounded-lg bg-gradient-to-br from-purple-50 to-blue-50 p-3 dark:from-purple-950 dark:to-blue-950">
-              <div className="flex items-center gap-2 mb-1">
-                <Crown className="h-4 w-4 text-purple-600" />
-                <span className="text-xs font-semibold">Upgrade to Pro</span>
+          <div className="border-t p-4" style={{ borderColor: 'var(--border)' }}>
+            <div className="rounded-xl bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 p-4 shadow-sm dark:from-purple-950 dark:via-pink-950 dark:to-blue-950">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 p-1 shadow-sm">
+                  <Crown className="h-3 w-3 text-white" />
+                </div>
+                <span className="text-xs font-bold">Upgrade to Pro</span>
               </div>
-              <p className="text-[11px] text-zinc-600 dark:text-zinc-400 mb-2">
+              <p className="text-[11px] text-zinc-600 dark:text-zinc-400 mb-3 leading-relaxed">
                 Unlock crypto tracking, advanced tax tools, and more.
               </p>
-              <button className="w-full rounded-md bg-purple-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-purple-700">
-                Upgrade Now
+              <button className="w-full rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 px-3 py-2 text-xs font-medium text-white shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all">
+                Upgrade Now →
               </button>
             </div>
           </div>
