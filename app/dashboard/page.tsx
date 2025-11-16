@@ -1,10 +1,10 @@
 import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
-import { db } from '@/db';
-import { incomeStreams } from '@/db/schema';
-import { eq } from 'drizzle-orm';
-import { formatCurrency, calculateMonthlyRecurring } from '@/lib/utils';
-import { Plus, TrendingUp, Wallet, Calendar } from 'lucide-react';
+import { db } from '@/lib/db';
+import { connections, bankAccounts, transactions } from '@/db/schema';
+import { eq, desc } from 'drizzle-orm';
+import { IncomeSummary } from '@/components/income-summary';
+import { Wallet, Plus } from 'lucide-react';
 import Link from 'next/link';
 
 export default async function DashboardPage() {
@@ -14,23 +14,39 @@ export default async function DashboardPage() {
     redirect('/sign-in');
   }
 
-  // Fetch income streams for the user
-  const streams = await db
+  // Check if user has connected bank account
+  const userConnections = await db
     .select()
-    .from(incomeStreams)
-    .where(eq(incomeStreams.userId, userId))
-    .orderBy(incomeStreams.createdAt);
+    .from(connections)
+    .where(eq(connections.userId, userId))
+    .limit(1);
 
-  // Calculate totals
-  const totalMonthlyIncome = streams.reduce((acc, stream) => {
-    if (stream.status === 'active') {
-      return acc + calculateMonthlyRecurring(stream.amount, stream.frequency);
+  const hasConnection = userConnections.length > 0;
+
+  // Fetch user's transactions
+  let userTransactions: any[] = [];
+  let lastSyncDate: Date | null = null;
+
+  if (hasConnection) {
+    userTransactions = await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.userId, userId))
+      .orderBy(desc(transactions.transactionDate))
+      .limit(100);
+
+    // Get last sync date from bank accounts
+    const accounts = await db
+      .select()
+      .from(bankAccounts)
+      .where(eq(bankAccounts.userId, userId))
+      .orderBy(desc(bankAccounts.lastSynced))
+      .limit(1);
+
+    if (accounts.length > 0) {
+      lastSyncDate = accounts[0].lastSynced;
     }
-    return acc;
-  }, 0);
-
-  const totalStreams = streams.length;
-  const activeStreams = streams.filter(s => s.status === 'active').length;
+  }
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -45,135 +61,58 @@ export default async function DashboardPage() {
             <Link href="/dashboard" className="text-sm font-medium">
               Dashboard
             </Link>
-            <Link href="/dashboard/streams" className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
-              Income Streams
+            <Link href="/dashboard/streams/new" className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+              Add Stream
             </Link>
           </nav>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
-        {/* Stats Cards */}
-        <div className="mb-8 grid gap-4 md:grid-cols-3">
-          <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-zinc-600 dark:text-zinc-400">Monthly Income</p>
-                <p className="mt-2 text-3xl font-bold">{formatCurrency(totalMonthlyIncome)}</p>
-              </div>
-              <div className="rounded-full bg-green-100 p-3 dark:bg-green-900/20">
-                <TrendingUp className="h-6 w-6 text-green-600 dark:text-green-400" />
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-zinc-600 dark:text-zinc-400">Active Streams</p>
-                <p className="mt-2 text-3xl font-bold">{activeStreams}</p>
-              </div>
-              <div className="rounded-full bg-blue-100 p-3 dark:bg-blue-900/20">
-                <Wallet className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-zinc-600 dark:text-zinc-400">Total Streams</p>
-                <p className="mt-2 text-3xl font-bold">{totalStreams}</p>
-              </div>
-              <div className="rounded-full bg-purple-100 p-3 dark:bg-purple-900/20">
-                <Calendar className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Income Streams Table */}
-        <div className="rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="flex items-center justify-between border-b border-zinc-200 p-6 dark:border-zinc-800">
-            <h2 className="text-xl font-semibold">Income Streams</h2>
-            <Link
-              href="/dashboard/streams/new"
-              className="flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+      <main className="container mx-auto px-4 py-8 max-w-6xl">
+        {/* Connection Status */}
+        {!hasConnection && (
+          <div className="mb-8 rounded-lg border-2 border-dashed border-zinc-300 bg-white p-8 text-center dark:border-zinc-700 dark:bg-zinc-900">
+            <h2 className="mb-2 text-xl font-semibold">Connect Your Bank Account</h2>
+            <p className="mb-6 text-zinc-600 dark:text-zinc-400">
+              Link your bank account via Open Banking to automatically track your passive income streams.
+              Your data is secure and read-only.
+            </p>
+            <a
+              href="/api/truelayer/connect"
+              className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-6 py-3 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
             >
               <Plus className="h-4 w-4" />
-              Add Stream
-            </Link>
+              Connect Bank Account
+            </a>
+            <p className="mt-4 text-xs text-zinc-500">
+              Powered by TrueLayer • FCA Regulated • Bank-level security
+            </p>
           </div>
+        )}
 
-          {streams.length === 0 ? (
-            <div className="p-12 text-center">
-              <p className="mb-4 text-lg text-zinc-600 dark:text-zinc-400">
-                No income streams yet. Add your first one to get started!
-              </p>
-              <Link
-                href="/dashboard/streams/new"
-                className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
-              >
-                <Plus className="h-4 w-4" />
-                Add Your First Stream
-              </Link>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="border-b border-zinc-200 dark:border-zinc-800">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                      Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                      Category
-                    </th>
-                    <th className="px-6 py-3 text-left text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                      Amount
-                    </th>
-                    <th className="px-6 py-3 text-left text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                      Frequency
-                    </th>
-                    <th className="px-6 py-3 text-left text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                      Monthly
-                    </th>
-                    <th className="px-6 py-3 text-left text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                      Status
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {streams.map((stream) => (
-                    <tr
-                      key={stream.id}
-                      className="border-b border-zinc-200 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/50"
-                    >
-                      <td className="px-6 py-4 text-sm font-medium">{stream.name}</td>
-                      <td className="px-6 py-4 text-sm capitalize">{stream.category}</td>
-                      <td className="px-6 py-4 text-sm">{formatCurrency(stream.amount)}</td>
-                      <td className="px-6 py-4 text-sm capitalize">{stream.frequency}</td>
-                      <td className="px-6 py-4 text-sm">
-                        {formatCurrency(calculateMonthlyRecurring(stream.amount, stream.frequency))}
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        <span
-                          className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                            stream.status === 'active'
-                              ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400'
-                              : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400'
-                          }`}
-                        >
-                          {stream.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        {/* Success Message */}
+        {hasConnection && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('connected') === 'true' && (
+          <div className="mb-8 rounded-lg border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-800 dark:bg-green-900/20 dark:text-green-200">
+            ✓ Bank account connected successfully! Your transactions are now syncing.
+          </div>
+        )}
+
+        {/* Income Summary */}
+        {hasConnection && (
+          <IncomeSummary transactions={userTransactions} lastSynced={lastSyncDate} />
+        )}
+
+        {/* No transactions yet */}
+        {hasConnection && userTransactions.length === 0 && (
+          <div className="rounded-lg border bg-card p-12 text-center">
+            <p className="text-lg text-muted-foreground">
+              No passive income transactions found yet. Transactions will appear here after your next sync.
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Syncs happen automatically every 6 hours.
+            </p>
+          </div>
+        )}
       </main>
     </div>
   );

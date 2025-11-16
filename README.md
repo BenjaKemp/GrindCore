@@ -9,9 +9,12 @@ Track every passive-income stream in the UK from one dashboard – zero spreadsh
 
 ## 🚀 Features
 
-- **📊 Dashboard Overview**: See all your income streams at a glance
-- **💰 Income Tracking**: Track rental income, dividends, freelance work, and more
-- **🏦 Open Banking Ready**: TrueLayer integration placeholders for UK bank connections
+- **📊 Dashboard Overview**: See all your passive income at a glance
+- **💰 Automatic Income Tracking**: Auto-fetch dividends, interest, rental income via Open Banking
+- **🏦 TrueLayer Integration**: Full UK Open Banking integration (sandbox + production ready)
+- **📈 Tax Calculations**: Estimate tax on dividends (£2k allowance) and interest (PSA)
+- **🏦 ISA Recommendations**: Smart prompts to use your £20k ISA allowance
+- **🔄 Auto-Sync**: Transactions sync every 6 hours via Vercel Cron
 - **🔒 Secure Authentication**: Clerk authentication with UK phone + Google support
 - **📱 Responsive Design**: Works beautifully on desktop, tablet, and mobile
 - **⚡ Real-time Updates**: Live data with Next.js App Router
@@ -35,8 +38,9 @@ Track every passive-income stream in the UK from one dashboard – zero spreadsh
 - **Clerk** - UK phone + Google authentication
 
 ### Integrations
-- **TrueLayer SDK** - Open Banking API (placeholder)
-- **Vercel Cron** - Scheduled transaction syncing
+- **TrueLayer** - Full Open Banking API integration
+- **Vercel Cron** - Scheduled transaction syncing (every 6 hours)
+- **Nutmeg** - ISA affiliate integration
 
 ### Deployment
 - **Vercel** (recommended)
@@ -67,21 +71,56 @@ Track every passive-income stream in the UK from one dashboard – zero spreadsh
    ```
    
    Edit `.env.local` with your credentials:
-   - Get Clerk keys from [https://clerk.com](https://clerk.com)
-   - Get TrueLayer credentials from [https://truelayer.com](https://truelayer.com)
+   - **Clerk**: Get keys from [clerk.com](https://clerk.com) → Create Application
+   - **TrueLayer Sandbox**: Get credentials from [console.truelayer.com](https://console.truelayer.com)
+     - Create a sandbox app
+     - Set redirect URI: `http://localhost:3000/api/truelayer/callback`
+     - Copy Client ID and Client Secret
+   - **CRON_SECRET**: Generate with `openssl rand -base64 32`
 
 4. **Set up the database**
    ```bash
-   npm run db:push
+   npx drizzle-kit push
    ```
+   
+   *Note: In development, this uses SQLite. For production, set `DATABASE_URL` to PostgreSQL.*
 
 5. **Run the development server**
    ```bash
    npm run dev
    ```
 
-6. **Open your browser**
-   Navigate to [http://localhost:3000](http://localhost:3000)
+6. **Use the app**
+   - Navigate to [http://localhost:3000](http://localhost:3000)
+   - Sign in with Clerk (create an account if needed)
+   - Click "Connect Bank Account" on the dashboard
+   - Use TrueLayer sandbox test credentials
+   - Watch your passive income transactions appear!
+
+## 🏦 TrueLayer Sandbox Setup
+
+1. Visit [console.truelayer.com](https://console.truelayer.com) and create an account
+2. Create a new **Sandbox** application
+3. Configure:
+   - **Redirect URIs**: `http://localhost:3000/api/truelayer/callback`
+   - **Permissions**: `accounts`, `balance`, `transactions`
+4. Copy your credentials to `.env.local`
+5. Use test bank credentials when connecting (provided by TrueLayer)
+
+## 🔄 Vercel Cron Setup (Production)
+
+Add to your `vercel.json`:
+
+```json
+{
+  "crons": [{
+    "path": "/api/cron/sync-transactions",
+    "schedule": "0 */6 * * *"
+  }]
+}
+```
+
+This syncs transactions every 6 hours. Add your `CRON_SECRET` to Vercel environment variables.
 
 ## 📁 Project Structure
 
@@ -114,21 +153,25 @@ GrindCore/
 
 ## 🗄️ Database Schema
 
-### Income Streams
-- Track all types of passive income
-- Categories: Investment, Rental, Freelance, Business, Dividends, Other
-- Frequency options: Weekly, Monthly, Quarterly, Yearly, One-time
-- Status tracking: Active, Inactive, Pending
+### Users
+- Synced with Clerk authentication
+- Stores `clerkId`, email, timestamps
 
-### Transactions
-- Linked to income streams
-- TrueLayer integration ready
-- Automatic categorization
+### Connections
+- OAuth tokens from TrueLayer
+- Access token, refresh token, expiry
+- Supports token auto-refresh
 
 ### Bank Accounts
-- TrueLayer connected accounts
-- Balance tracking
+- Connected via TrueLayer
+- Account details, balance, sort code
 - Last sync timestamps
+
+### Transactions
+- Auto-fetched from TrueLayer
+- Auto-categorized: dividend, interest, rental, other
+- Amount, description, date
+- Linked to bank accounts
 
 ## 🚀 Deployment
 
@@ -196,14 +239,18 @@ npm run db:studio    # Open Drizzle Studio
 
 ## 🎯 Roadmap
 
-- [ ] Complete TrueLayer Open Banking integration
-- [ ] Add transaction categorization AI
-- [ ] Implement data visualization charts
+- [x] Complete TrueLayer Open Banking integration
+- [x] Automatic transaction categorization
+- [x] UK Tax calculation (dividends + interest)
+- [x] ISA allowance tracking & affiliate CTA
+- [x] Vercel Cron auto-sync (6 hours)
+- [ ] Add data visualization charts
 - [ ] Export reports to PDF/CSV
 - [ ] Mobile app (React Native)
 - [ ] Multi-currency support
-- [ ] Tax calculation helpers
+- [ ] Advanced tax optimization suggestions
 - [ ] Goal tracking features
+- [ ] Stripe Pro tier (advanced features)
 
 ## 🤝 Contributing
 
