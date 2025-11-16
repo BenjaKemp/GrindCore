@@ -12,13 +12,15 @@ import {
   Menu, 
   X,
   Wallet,
-  Crown
+  Crown,
+  Handshake
 } from 'lucide-react';
 import { useState } from 'react';
 
 const menuItems = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Income Streams', href: '/dashboard/income', icon: TrendingUp },
+  { name: 'P2P Lending', href: '/dashboard/p2p', icon: Handshake },
   { name: 'Tax & ISA', href: '/dashboard/tax', icon: Receipt },
   { name: 'Crypto Staking', href: '/dashboard/crypto', icon: Rocket, pro: true },
   { name: 'Affiliates', href: '/dashboard/affiliates', icon: Gift },

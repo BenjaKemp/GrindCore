@@ -91,6 +91,31 @@ export const cryptoRewards = sqliteTable('crypto_rewards', {
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 });
 
+// P2P lending accounts
+export const p2pAccounts = sqliteTable('p2p_accounts', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('user_id').notNull(),
+  provider: text('provider').notNull(), // 'zopa', 'ratesetter', 'lendingworks'
+  email: text('email').notNull(),
+  accessToken: text('access_token'),
+  refreshToken: text('refresh_token'),
+  tokenExpiresAt: integer('token_expires_at', { mode: 'timestamp' }),
+  lastSynced: integer('last_synced', { mode: 'timestamp' }),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+});
+
+// P2P interest payments
+export const p2pInterest = sqliteTable('p2p_interest', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  accountId: integer('account_id').notNull(),
+  userId: text('user_id').notNull(),
+  amount: real('amount').notNull(), // Interest amount in GBP
+  rate: real('rate'), // Annual interest rate (e.g., 5.2 for 5.2%)
+  interestDate: integer('interest_date', { mode: 'timestamp' }).notNull(),
+  description: text('description'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+});
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Connection = typeof connections.$inferSelect;
@@ -105,3 +130,7 @@ export type CryptoWallet = typeof cryptoWallets.$inferSelect;
 export type NewCryptoWallet = typeof cryptoWallets.$inferInsert;
 export type CryptoReward = typeof cryptoRewards.$inferSelect;
 export type NewCryptoReward = typeof cryptoRewards.$inferInsert;
+export type P2PAccount = typeof p2pAccounts.$inferSelect;
+export type NewP2PAccount = typeof p2pAccounts.$inferInsert;
+export type P2PInterest = typeof p2pInterest.$inferSelect;
+export type NewP2PInterest = typeof p2pInterest.$inferInsert;
